@@ -1,0 +1,15 @@
+[project]
+name = "laia-tutorial"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.13"
+dependencies = [
+    "joblib>=1.5.2",
+    "matplotlib>=3.10.7",
+    "mlflow>=3.4.0",
+    "scikit-learn>=1.7.2",
+    "flask>=3.0.0",
+    "pandas>=2.0.0",
+    "pytest>=8.0.0",
+    "requests>=2.31.0",
+]

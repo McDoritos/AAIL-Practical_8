@@ -1,0 +1,62 @@
+name: 4 - Continuous Deployment
+run-name: "${{ github.workflow }}"
+
+permissions: write-all
+
+on:
+  # Runs when the previous stage finished
+  workflow_run:
+    workflows: ["3 - Continuous Staging"]
+    types: [completed]
+
+  workflow_dispatch:
+
+env:
+  REGISTRY: ${{ vars.REGISTRY }}
+  MLFLOW_TRACKING_URI: ${{ vars.MLFLOW_TRACKING_URI }}
+  MLFLOW_EXPERIMENT_NAME: ${{ vars.MLFLOW_EXPERIMENT_NAME }}
+  MLFLOW_MODEL_NAME: ${{ vars.MLFLOW_MODEL_NAME }}
+
+jobs:
+  deploy-prod:
+    # Run only if previous stage finished successfully
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Here we are just loging in to GHCR and pulling the serving image with production tag and running it
+      # In a real setup the deployment can be made in several ways, depending on the automation,
+      # purpose, and infra. Some examples:
+      # - We can connect through ssh and update the env
+      # - if we have orchestrators we can send/define/update the new versions to where the system is watching
+      # - the system itself might be monitoring repos and update when the new versions are pushed
+      # Also, in real setups the infra will be decoupled from the models. Here everything moves forward together
+      # but if we only change the model it is not necessary to redeploy the infrascruture. Serving frameworks
+      # such as TF serving can manage model A/B testing, rollout, rollback, ...
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - run: docker pull ${{ env.REGISTRY }}/${{ github.repository }}/serving:production
+      - run: docker stop serving-app || true
+      - run: docker rm serving-app || true
+
+      - name: Run production
+        env:
+          MLFLOW_TRACKING_URI: ${{ env.MLFLOW_TRACKING_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_PASSWORD }}
+          MODEL_ALIAS: ${{ github.sha }}
+          MLFLOW_MODEL_NAME: ${{ env.MLFLOW_MODEL_NAME }}
+        run: |
+          docker run -d --name serving-app -p 9000:8080 \
+            -e MLFLOW_TRACKING_URI \
+            -e MLFLOW_TRACKING_USERNAME \
+            -e MLFLOW_TRACKING_PASSWORD \
+            -e MODEL_ALIAS \
+            -e MLFLOW_MODEL_NAME \
+          ${{ env.REGISTRY }}/${{ github.repository }}/serving:production
