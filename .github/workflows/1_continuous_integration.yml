@@ -74,7 +74,7 @@ jobs:
       # Push training image to repository
       - name: Push training image
         run: |
-          docker tag training:${{ github.sha }} ${{ env.REGISTRY }}/${{ https://github.com/McDoritos/AAIL-Practical_8 }}/training:${{ github.sha }}
+          docker tag training:${{ github.sha }} ${{ env.REGISTRY }}/McDoritos/AAIL-Practical_8/training:${{ github.sha }}
           docker push ${{ env.REGISTRY }}/${{ github.repository }}/training:${{ github.sha }}
 
       # Tag serving image with commit sha; this image will be used for further testing in the following workflows
